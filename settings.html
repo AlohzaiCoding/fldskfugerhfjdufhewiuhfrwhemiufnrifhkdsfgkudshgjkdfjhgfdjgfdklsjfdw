@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings - bryanbirth</title><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<div id="top"></div>
+<div class="form-page">
+  <h2>Settings</h2>
+  <div id="msg"></div>
+  <div id="form"><div class="loading">Loading...</div></div>
+</div>
+<script src="js/config.js"></script><script src="js/api.js"></script><script src="js/ui.js"></script>
+<script>
+initTheme();if(checkBanGate())throw 0;
+document.getElementById('top').innerHTML=renderTop();bindChrome();
+const u=getSession();if(!u)location.href='login.html';
+(async()=>{
+  const p=await getProfile(u.username);
+  document.getElementById('form').innerHTML=`
+    <label>Display name</label><input type="text" id="dname" value="${esc(p.display_name||'')}">
+    <label>Avatar URL</label><input type="url" id="av" value="${esc(p.avatar_url||'')}">
+    <label>Bio</label><input type="text" id="bio" value="${esc(p.bio||'')}">
+    <label>Theme</label>
+    <p><button type="button" data-theme="light">Light</button>
+    <button type="button" data-theme="normal">Normal</button>
+    <button type="button" data-theme="dark">Dark</button></p>
+    <button type="button" id="save" style="margin-top:10px">Save</button>`;
+  document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>applyTheme(b.getAttribute('data-theme')));
+  document.getElementById('save').onclick=async()=>{
+    try{
+      const data={display_name:document.getElementById('dname').value.trim(),avatar_url:document.getElementById('av').value.trim(),bio:document.getElementById('bio').value.trim()};
+      await api('profiles?username=eq.'+encodeURIComponent(u.username),{method:'PATCH',body:JSON.stringify(data)});
+      setSession({...u,...data});
+      document.getElementById('msg').innerHTML='<div class="success">Saved</div>';
+    }catch(e){document.getElementById('msg').innerHTML='<div class="error">'+esc(e.message)+'</div>';}
+  };
+})();
+</script>
+</body></html>

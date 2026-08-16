@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bryanbirth</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="top"></div>
+<div class="wrap">
+  <div class="main">
+    <div class="box compose" id="compose-box" style="display:none">
+      <div class="box-b">
+        <textarea id="post-body" maxlength="140" placeholder="What's happening?"></textarea>
+        <div class="media-row">
+          Image: <input type="file" id="img-file" accept="image/*">
+          Video: <input type="file" id="vid-file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov">
+        </div>
+        <div class="bar">
+          <span class="count" id="char-count">140</span>
+          <button type="button" class="tweet-btn" id="tweet-btn">Tweet</button>
+        </div>
+        <div id="post-msg"></div>
+      </div>
+    </div>
+    <div class="box">
+      <div class="box-h">Home</div>
+      <div id="feed"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+  <div class="side">
+    <div class="box">
+      <div class="box-h" id="side-name">Welcome</div>
+      <div class="box-b profile-card" id="side-profile"></div>
+    </div>
+    <div class="box">
+      <div class="box-h">Search</div>
+      <div class="box-b search-box"><input type="text" id="search" placeholder="Search bryanbirth"></div>
+    </div>
+    <div class="box">
+      <div class="box-h">Who to follow</div>
+      <div class="box-b side-links" style="font-size:12px;color:var(--muted)">Find people on bryanbirth</div>
+    </div>
+  </div>
+</div>
+<div class="footer">bryanbirth</div>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+initTheme();
+if(checkBanGate())throw 0;
+document.getElementById('top').innerHTML=renderTop();
+bindChrome();
+const u=getSession();
+const side=document.getElementById('side-profile');
+if(u){
+  document.getElementById('compose-box').style.display='block';
+  document.getElementById('side-name').textContent=u.display_name||u.username;
+  side.innerHTML=`<img class="av" src="${esc(u.avatar_url||'https://via.placeholder.com/64')}" alt=""><div class="name">${esc(u.display_name||u.username)}${u.is_admin?'<span class="admin-badge">ADM</span>':''}</div><div class="stats">@${esc(u.username)}</div>`;
+}else{
+  side.innerHTML=`<p style="font-size:12px;color:var(--muted)">Not logged in.</p><p style="margin-top:8px"><a href="login.html">Log in</a> · <a href="signup.html">Sign up</a></p>`;
+}
+const ta=document.getElementById('post-body');
+const cnt=document.getElementById('char-count');
+if(ta)ta.oninput=()=>{cnt.textContent=140-ta.value.length;};
+document.getElementById('tweet-btn')?.addEventListener('click',async()=>{
+  const msg=document.getElementById('post-msg');
+  const body=ta.value.trim();
+  if(!body&&!document.getElementById('img-file').files[0]&&!document.getElementById('vid-file').files[0]){msg.innerHTML='<div class="error">Empty post</div>';return;}
+  const check=canPost();
+  if(!check.ok){msg.innerHTML='<div class="error">'+esc(check.msg)+'</div>';if(isBanned())setTimeout(()=>location.reload(),400);return;}
+  try{
+    let image_url='',video_url='';
+    const img=document.getElementById('img-file').files[0];
+    const vid=document.getElementById('vid-file').files[0];
+    if(img)image_url=await fileToDataUrl(img,2);
+    if(vid)video_url=await fileToDataUrl(vid,12);
+    await createPost({username:u.username,body:body||'(media)',image_url,video_url});
+    markPosted();
+    ta.value='';cnt.textContent='140';
+    document.getElementById('img-file').value='';
+    document.getElementById('vid-file').value='';
+    msg.innerHTML='<div class="success">Posted!</div>';
+    loadFeed();
+  }catch(e){msg.innerHTML='<div class="error">'+esc(e.message)+'</div>';}
+});
+async function loadFeed(){
+  try{
+    const posts=await getPosts(50);
+    const cache={};
+    for(const p of posts){
+      if(!cache[p.username]){try{cache[p.username]=await getProfile(p.username);}catch(e){cache[p.username]=null;}}
+      p.display_name=cache[p.username]?.display_name||p.username;
+      p.avatar=cache[p.username]?.avatar_url||'';
+    }
+    const admin=u&&u.is_admin;
+    document.getElementById('feed').innerHTML=posts.length?posts.map(t=>tweetHTML(t,admin)).join(''):'<div class="loading">No posts yet.</div>';
+  }catch(e){document.getElementById('feed').innerHTML='<div class="error">'+esc(e.message)+'</div>';}
+}
+document.getElementById('feed').addEventListener('click',async e=>{
+  const del=e.target.getAttribute('data-del');
+  const rmimg=e.target.getAttribute('data-rmimg');
+  const rmvid=e.target.getAttribute('data-rmvid');
+  const ban=e.target.getAttribute('data-ban');
+  if(del){if(!confirm('Delete post?'))return;try{await deletePost(del);loadFeed();}catch(err){alert(err.message);}}
+  if(rmimg){if(!confirm('Remove image?'))return;try{await updatePost(rmimg,{image_url:''});loadFeed();}catch(err){alert(err.message);}}
+  if(rmvid){if(!confirm('Remove video?'))return;try{await updatePost(rmvid,{video_url:''});loadFeed();}catch(err){alert(err.message);}}
+  if(ban){if(!confirm('Ban user '+ban+'?'))return;try{await banUser(ban);alert('Banned');}catch(err){alert(err.message);}}
+});
+loadFeed();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Profile - bryanbirth</title><link rel="stylesheet" href="css/style.css"></head>
+<body>
+<div id="top"></div>
+<div class="wrap"><div class="main">
+  <div class="box"><div class="box-h" id="ph">Profile</div><div id="pinfo" class="box-b loading">Loading...</div></div>
+  <div class="box"><div class="box-h">Posts</div><div id="feed"><div class="loading">Loading...</div></div></div>
+</div></div>
+<script src="js/config.js"></script><script src="js/api.js"></script><script src="js/ui.js"></script>
+<script>
+initTheme();if(checkBanGate())throw 0;
+document.getElementById('top').innerHTML=renderTop();bindChrome();
+const u=getSession();
+const uname=new URLSearchParams(location.search).get('u')||'';
+(async()=>{
+  try{
+    const p=await getProfile(uname);
+    if(!p){document.getElementById('pinfo').innerHTML='<div class="error">User not found</div>';return;}
+    document.getElementById('ph').textContent=p.display_name||p.username;
+    document.getElementById('pinfo').innerHTML=`<div class="profile-card"><img class="av" src="${esc(p.avatar_url||'https://via.placeholder.com/64')}" alt=""><div class="name">${esc(p.display_name||p.username)}${p.is_admin?'<span class="admin-badge">ADM</span>':''}</div><div class="stats">@${esc(p.username)}</div><p style="margin-top:8px;color:var(--muted)">${esc(p.bio||'')}</p></div>`;
+    const posts=await api('posts?username=eq.'+encodeURIComponent(uname)+'&order=created_at.desc&limit=40');
+    posts.forEach(t=>{t.display_name=p.display_name;t.avatar=p.avatar_url;});
+    document.getElementById('feed').innerHTML=posts.length?posts.map(t=>tweetHTML(t,u&&u.is_admin)).join(''):'<div class="loading">No posts.</div>';
+  }catch(e){document.getElementById('pinfo').innerHTML='<div class="error">'+esc(e.message)+'</div>';}
+})();
+</script>
+</body></html>

@@ -97,19 +97,24 @@ function detectTimeTravel(){
 }
 function getPostMeta(){try{return JSON.parse(localStorage.getItem('bb_post_meta')||'{"last":0,"strikes":0}');}catch(e){return{last:0,strikes:0};}}
 function setPostMeta(m){localStorage.setItem('bb_post_meta',JSON.stringify(m));}
-
-// RATE LIMIT REMOVIDO - SEMPRE PERMITE POSTAR
 function canPost(){
   if(isBanned())return{ok:false,msg:'You are banned from bryanbirth.'};
   if(detectTimeTravel())return{ok:false,msg:'Time travel detected. Permanent ban.'};
-  return{ok:true}; 
+  const m=getPostMeta();
+  const now=Date.now();
+  const wait=m.strikes>=2?(1000*365.25*24*3600*1000):(8*3600*1000);
+  if(now-m.last<wait){
+    const h=Math.ceil((wait-(now-m.last))/3600000);
+    return{ok:false,msg:m.strikes>=2?'Rate limited for ~1000 years.':'Rate limit: wait ~'+h+' hour(s).'};
+  }
+  return{ok:true};
 }
-
-// RATE LIMIT REMOVIDO - NÃO APLICA STRIKES NEM ESPERA
 function markPosted(){
-  // Não faz mais nada, o usuário pode postar quantas vezes quiser
+  const m=getPostMeta();
+  const now=Date.now();
+  if(m.last&&now-m.last<8*3600*1000)m.strikes=(m.strikes||0)+1;
+  m.last=now;setPostMeta(m);
 }
-
 function isBlockedName(name){
   const n=(name||'').toLowerCase().replace(/\s+/g,'');
   return BLOCKED_NAMES.some(b=>n===b.replace(/\s+/g,'')||n.includes(b.replace(/\s+/g,'')));
